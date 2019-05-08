@@ -1,14 +1,21 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 from __future__ import division
 import math
 import random
 import string
 import pickle
 
-flowerLables = {0:'Iris-setosa',
-                 1:'Iris-versicolor',
-                 2:'Iris-virginica'}
+# 1、一级： 空气污染指数 ≤50优级
+# 2、二级： 空气污染指数 ≤100良好
+# 3、三级： 空气污染指数 ≤200轻度污染
+# 4、四级： 空气污染指数 ≤300中度污染
+# 5、五级： 空气污染指数 >300重度污染
+
+flowerLables = {0:'优',
+                 1:'良',
+                2:'轻度污染',
+                3:'中度污染',
+                4:'重度污染'}
 random.seed(0)
 # 生成区间[a, b)内的随机数
 def rand(a, b):
@@ -140,9 +147,6 @@ class NN:
         accuracy = float(count/len(patterns))
         print('accuracy: %-.9f' % accuracy)
 
-
-
-
     def weights(self):
         print('输入层权重:')
         for i in range(self.ni):
@@ -155,6 +159,7 @@ class NN:
     def train(self, patterns, iterations=1000, N=0.1, M=0.01):
         # N: 学习速率(learning rate)
         # M: 动量因子(momentum factor)
+        train_line = []
         for i in range(iterations):
             error = 0.0
             for p in patterns:
@@ -164,6 +169,8 @@ class NN:
                 error = error + self.backPropagate(targets, N, M)
             if i % 100 == 0:
                 print('误差 %-.9f' % error)
+                train_line.append(error)
+        return train_line
 
 
 def demo():
@@ -187,23 +194,49 @@ def demo():
 import numpy as np
 import pandas as pd
 
+def Normalize(data):
+    m = np.mean(data)
+    mx = max(data)
+    mn = min(data)
+    return [(float(i) - m) / (mx - mn) for i in data]
+
 # features 0-3
 # labels 4
 def iris():
     data = []
     # read dataset
-    raw = pd.read_csv('iris.csv')
+    raw = pd.read_csv('new.csv')
     raw_data = raw.values
-    raw_feature = raw_data[0:,0:4]
+    raw_feature = raw_data[0:,3:9]
+
+    ###############数据归一化操作
+
+    from sklearn.preprocessing import StandardScaler
+
+    # 标准化，返回值为标准化后的数据
+    new_feature=StandardScaler().fit_transform(raw_feature)
+
+    print(raw_feature)
+    #raw_feature=Normalize(raw_feature)
+    raw_feature=new_feature
+    #######################数据归一化完成
+
+
+
     for i in range(len(raw_feature)):
         ele = []
         ele.append(list(raw_feature[i]))
-        if raw_data[i][4] == 'Iris-setosa':
-           ele.append([1,0,0])
-        elif raw_data[i][4] == 'Iris-versicolor':
-            ele.append([0,1,0])
-        else:
-            ele.append([0,0,1])
+        if raw_data[i][2] == '优':
+           ele.append([1,0,0,0,0])#,0
+        elif raw_data[i][2] == '良':
+            ele.append([0,1,0,0,0])#,0
+        elif raw_data[i][2] == '轻度污染':
+            ele.append([0,0,1,0,0])#,0
+        elif raw_data[i][2] == '中度污染':
+            ele.append([0,0,0,1,0])#,0
+        elif raw_data[i][2] == '重度污染':
+            ele.append([0,0,0,0,1])#,0
+
         data.append(ele)
 
     # print data
@@ -211,22 +244,56 @@ def iris():
     # 随机排列data
     random.shuffle(data)
     # print data
-    training = data[0:100]
-    test = data[101:]
+
+    #数据归一化试试
+    # from sklearn import preprocessing
+    # import numpy as np
+
+    # X = np.array(data)
+    # min_max_scaler = preprocessing.MinMaxScaler()
+    # X_minMax = min_max_scaler.fit_transform(X)
+    #
+    # print(X_minMax)
+    print(len(data))
+
+    training = data[0:250]
+    test = data[251:]
+    #训练集跟测试机的划分
     # print np.shape(l)
     # print np.shape(data)
     # training_set = np.c_[data, l]
-    nn = NN(4,7,3)
-    nn.train(training,iterations=10000)
+
+    #筛选奇异值
+    index=0
+    new_training=[]
+    for p in training:
+        try:
+            inputs = p[0]
+            targets = p[1]
+            new_training.append(p)
+        except:
+            pass
+
+    nn = NN(6,9,5)
+    #隐含层节点个数
+    line=nn.train(new_training,iterations=1000)
 
     # save weights
-    with open('wi.txt', 'w') as wif:
-        pickle.dump(nn.wi, wif)
-    with open('wo.txt', 'w') as wof:
-        pickle.dump(nn.wo, wof)
+    #with open('wi.txt', 'wb') as wif:
+    #    pickle.dump(nn.wi, wif)
+    #with open('wo.txt', 'wb') as wof:
+    #    pickle.dump(nn.wo, wof)
 
     nn.test(test)
 
+    import matplotlib.pyplot as plt
+    plt.plot(line, label='loss')
+    print(line)
+    plt.legend()
+    plt.show()
+    print('ok')
+
 if __name__ == '__main__':
+    #demo()
     iris()
 
